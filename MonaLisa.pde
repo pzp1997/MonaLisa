@@ -2,44 +2,41 @@ import gab.opencv.OpenCV;
 import processing.video.Capture;
 import java.awt.Rectangle;
 
-PImage monaLisa, mask, maskedFace;
+// Drag an image file into this window. Replace Mona_Lisa.jpg with the name of that file.
+String paintingFilename = "Mona_Lisa.jpg";
+
+PImage painting, mask, maskedFace;
 Capture cam;
 OpenCV faceCascade;
-Rectangle[] faces;
-Rectangle monaLisaFace, liveFace;
+Rectangle paintingFace, liveFace;
 
 void setup() {  
-  // Load PImage of the Mona Lisa
-  monaLisa = loadImage("Mona_Lisa.jpg");
-
-  // Set the size of the canvas according to the dimensions of `monaLisa`
-  surface.setSize(monaLisa.width, monaLisa.height);
-
+  // Load PImage of the painting
+  painting = loadImage(paintingFilename);
+  
+  // Set the size of the canvas according to the dimensions of `painting`
+  surface.setSize(painting.width, painting.height);
+  
   // Select and initialize the webcam
   cam = new Capture(this, 640, 480, "Live! Cam Sync HD VF0770");
   try {
     cam.start();
-  } 
-  catch (NullPointerException e) {
+  } catch (NullPointerException e) {
     cam = new Capture(this, 640, 480);
     cam.start();
   }
-
-  // Detect the Mona Lisa's face and store Rectangle of it in `monaLisaFace`
-  faceCascade = new OpenCV(this, monaLisa.width, monaLisa.height);
+  
+  // Detect the largest face in the painting and store Rectangle of it in `paintingFace`
+  faceCascade = new OpenCV(this, painting.width, painting.height);
   faceCascade.loadCascade(OpenCV.CASCADE_FRONTALFACE);
-  faceCascade.loadImage(monaLisa);
-  monaLisaFace = findLargestFace(faceCascade.detect());
-
+  faceCascade.loadImage(painting);
+  paintingFace = findLargestFace(faceCascade.detect());
+  
   // Setup the face detection object
   faceCascade = new OpenCV(this, cam.width, cam.height);
   faceCascade.loadCascade(OpenCV.CASCADE_FRONTALFACE);
-
+  
   mask = loadImage("mask.png");
-
-  // Set default drawing options
-  noFill();
-  strokeWeight(5);
 }
 
 void draw() {
@@ -48,28 +45,24 @@ void draw() {
     cam.read();
   }
 
-  // Display the Mona Lisa
-  image(monaLisa, 0, 0, width, height);
-
   // Detect the faces in the live image
   faceCascade.loadImage(cam);
-  faces = faceCascade.detect();
+  liveFace = findLargestFace(faceCascade.detect());
   
-  // If there is a detected face...
-  if (faces.length > 0) {
-    // Find the largest detected face (by area)
-    liveFace = findLargestFace(faces);
-    
-    // Mask the face with an ellipse to remove background in corners
+  // Display the painting
+  image(painting, 0, 0, width, height);
+  
+  // Crop the face according to the oval mask
+  if (liveFace.width > 0 && liveFace.height > 0) {
     mask.resize(liveFace.width, liveFace.height);
-    maskedFace = new PImage(liveFace.width, liveFace.height);
-    maskedFace.copy(cam, liveFace.x, liveFace.y, liveFace.width, liveFace.height, 
-                    0, 0, maskedFace.width, maskedFace.height);
+    maskedFace = createImage(liveFace.width, liveFace.height, RGB);
+    maskedFace.copy(cam, liveFace.x, liveFace.y, liveFace.width, liveFace.height,
+                    0, 0, liveFace.width, liveFace.height);
     maskedFace.mask(mask);
-
-    // Insert *the* face on top of the Mona Lisa's face
-    blend(maskedFace, 0, 0, maskedFace.width, maskedFace.height, 
-          monaLisaFace.x, monaLisaFace.y, monaLisaFace.width, monaLisaFace.height, MULTIPLY);
+    
+    // Insert `liveFace` on top of the `paintingFace`
+    blend(maskedFace, 0, 0, maskedFace.width, maskedFace.height,
+          paintingFace.x, paintingFace.y, paintingFace.width, paintingFace.height, MULTIPLY);
   }
 }
 
